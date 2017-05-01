@@ -20,7 +20,7 @@ Pod::Spec.new do |s|
   
   s.requires_arc = false
   
-  s.default_subspec = 'Standard'
+  s.default_subspec = 'NoSwift'
 
   # The 'Standard' subspec is the default: unused NSLogger functions will be stripped
   # from the final build
