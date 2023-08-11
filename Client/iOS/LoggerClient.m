@@ -159,7 +159,9 @@ struct Logger
 	uint32_t options;                               // Flags, see enum above
 	CFStringRef bonjourServiceType;                 // leave NULL to use the default
 	CFStringRef bonjourServiceName;                 // leave NULL to use the first one available
-	
+	CFStringRef clientName;                         // leave NULL to use kCFBundleNameKey from the main bundle
+	CFStringRef clientVersion;                      // leave NULL to use kCFBundleVersionKey from the main bundle
+
 	// internal state
 	BOOL targetReachable;                           // Set to YES when the Reachability target (host or internet) is deemed reachable
 	BOOL connected;                                 // Set to YES once the write stream declares the connection open
@@ -562,6 +564,10 @@ void LoggerStop(Logger *logger)
 			CFRelease(logger->bonjourServiceType);
 		if (logger->bonjourServiceName != NULL)
 			CFRelease(logger->bonjourServiceName);
+		if (logger->clientName != NULL)
+			CFRelease(logger->clientName);
+		if (logger->clientVersion != NULL)
+			CFRelease(logger->clientVersion);
 
 		// to make sure potential errors are caught, set the whole structure
 		// to a value that will make code crash if it tries using pointers to it.
@@ -600,6 +606,24 @@ void LoggerFlush(Logger *logger, BOOL waitForConnection)
 			pthread_cond_wait(&logger->logQueueEmpty, &logger->logQueueMutex);
 		pthread_mutex_unlock(&logger->logQueueMutex);
 	}
+}
+
+void LoggerSetClient(Logger *logger, CFStringRef clientName, CFStringRef clientVersion)
+{
+	if (logger == NULL)
+		logger = LoggerGetDefaultLogger();
+
+	if (clientName)
+		CFRetain(clientName);
+	if (logger->clientName != NULL)
+		CFRelease(logger->clientName);
+	logger->clientName = clientName;
+	
+	if (clientVersion)
+		CFRetain(clientVersion);
+	if (logger->clientVersion != NULL)
+		CFRelease(logger->clientVersion);
+	logger->clientVersion = clientVersion;
 }
 
 #if LOGGER_DEBUG
@@ -2499,17 +2523,15 @@ static void	LoggerPushClientInfoToFrontOfQueue(Logger *logger)
 	// Note that we must be called from the logger work thread, as we don't
 	// run through the message port to transmit this message to the queue
 	CFBundleRef bundle = CFBundleGetMainBundle();
-	if (bundle == NULL)
-		return;
 	CFMutableDataRef encoder = LoggerMessageCreate(0);
 	if (encoder != NULL)
 	{
 		LoggerMessageAddInt32(encoder, LOGMSG_TYPE_CLIENTINFO, PART_KEY_MESSAGE_TYPE);
 
-		CFStringRef version = (CFStringRef)CFBundleGetValueForInfoDictionaryKey(bundle, kCFBundleVersionKey);
+		CFStringRef version = logger->clientVersion ?: (bundle ? (CFStringRef)CFBundleGetValueForInfoDictionaryKey(bundle, kCFBundleVersionKey) : NULL);
 		if (version != NULL && CFGetTypeID(version) == CFStringGetTypeID())
 			LoggerMessageAddString(encoder, version, PART_KEY_CLIENT_VERSION);
-		CFStringRef name = (CFStringRef)CFBundleGetValueForInfoDictionaryKey(bundle, kCFBundleNameKey);
+		CFStringRef name = logger->clientName ?: (bundle ? (CFStringRef)CFBundleGetValueForInfoDictionaryKey(bundle, kCFBundleNameKey) : NULL);
 		if (name != NULL)
 			LoggerMessageAddString(encoder, name, PART_KEY_CLIENT_NAME);
 

@@ -163,6 +163,10 @@ extern void LoggerStop(Logger *logger) NSLOGGER_NOSTRIP;
 // viewer. You should be using NO most of the time, but in some cases it can be useful.
 extern void LoggerFlush(Logger *logger, BOOL waitForConnection) NSLOGGER_NOSTRIP;
 
+// Explicitly set the client name and version
+// If not set, the name and version are retrieved from the main bundle (kCFBundleNameKey +kCFBundleVersionKey)
+extern void LoggerSetClient(Logger *logger, CFStringRef clientName, CFStringRef clientVersion) NSLOGGER_NOSTRIP;
+
 /* Logging functions. Each function exists in four versions:
  *
  * - one without a Logger instance (uses default logger) and without filename/line/function (no F suffix)
