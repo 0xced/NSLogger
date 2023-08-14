@@ -154,6 +154,7 @@ struct Logger
 	NSUInteger sendBufferOffset;                    // offset in sendBuffer to start sending at
 	
 	_Atomic(int32_t) messageSeq;                    // sequential message number (added to each message sent)
+    struct timeval timestamp;                       // leave timestamp.tv_sec at 0 to use the current time (with gettimeofday)
 	
 	// settings
 	uint32_t options;                               // Flags, see enum above
@@ -212,9 +213,9 @@ static void LoggerFlushQueueToBufferStream(Logger *logger, BOOL firstEntryIsClie
 
 // Encoding functions
 static void	LoggerPushClientInfoToFrontOfQueue(Logger *logger);
-static void LoggerMessageAddTimestampAndThreadID(CFMutableDataRef encoder);
+static void LoggerMessageAddTimestampAndThreadID(CFMutableDataRef encoder, struct timeval timestamp);
 
-static CFMutableDataRef LoggerMessageCreate(int32_t seq);
+static CFMutableDataRef LoggerMessageCreate(Logger *logger, int32_t seq);
 static void LoggerMessageAddInt32(CFMutableDataRef encoder, int32_t anInt, int key);
 #if __LP64__
 static void LoggerMessageAddInt64(CFMutableDataRef data, int64_t anInt, int key);
@@ -624,6 +625,12 @@ void LoggerSetClient(Logger *logger, CFStringRef clientName, CFStringRef clientV
 	if (logger->clientVersion != NULL)
 		CFRelease(logger->clientVersion);
 	logger->clientVersion = clientVersion;
+}
+
+void LoggerSetTimestamp(Logger *logger, struct timeval timestamp)
+{
+    logger->timestamp.tv_sec = timestamp.tv_sec;
+    logger->timestamp.tv_usec = timestamp.tv_usec;
 }
 
 #if LOGGER_DEBUG
@@ -2245,10 +2252,16 @@ static uint8_t *LoggerMessagePrepareForPart(CFMutableDataRef encoder, uint32_t r
 	return p + oldSize;
 }
 
-static void LoggerMessageAddTimestamp(CFMutableDataRef encoder)
+static void LoggerMessageAddTimestamp(CFMutableDataRef encoder, struct timeval timestamp)
 {
 	struct timeval t;
-	if (gettimeofday(&t, NULL) == 0)
+    BOOL hasTimestamp = timestamp.tv_sec != 0;
+	if (hasTimestamp)
+	{
+		t.tv_sec = timestamp.tv_sec;
+		t.tv_usec = timestamp.tv_usec;
+	}
+	if (hasTimestamp || gettimeofday(&t, NULL) == 0)
 	{
 #if __LP64__
 		LoggerMessageAddInt64(encoder, t.tv_sec, PART_KEY_TIMESTAMP_S);
@@ -2269,9 +2282,9 @@ static void LoggerMessageAddTimestamp(CFMutableDataRef encoder)
 	}
 }
 
-static void LoggerMessageAddTimestampAndThreadID(CFMutableDataRef encoder)
+static void LoggerMessageAddTimestampAndThreadID(CFMutableDataRef encoder, struct timeval timestamp)
 {
-	LoggerMessageAddTimestamp(encoder);
+	LoggerMessageAddTimestamp(encoder, timestamp);
 
 	BOOL hasThreadName = NO;
 	// Getting the thread number is tedious, to say the least. Since there is
@@ -2351,7 +2364,7 @@ static void LoggerMessageAddTimestampAndThreadID(CFMutableDataRef encoder)
 	}
 }
 
-static CFMutableDataRef LoggerMessageCreate(int32_t seq)
+static CFMutableDataRef LoggerMessageCreate(Logger *logger, int32_t seq)
 {
 	CFMutableDataRef encoder = CFDataCreateMutable(NULL, 0);
 	if (encoder != NULL)
@@ -2376,7 +2389,9 @@ static CFMutableDataRef LoggerMessageCreate(int32_t seq)
 				p[3] = 2;
 			}
 		}
-		LoggerMessageAddTimestampAndThreadID(encoder);
+		LoggerMessageAddTimestampAndThreadID(encoder, logger->timestamp);
+		logger->timestamp.tv_sec = 0;
+		logger->timestamp.tv_usec = 0;
 	}
 	return encoder;
 }
@@ -2523,7 +2538,7 @@ static void	LoggerPushClientInfoToFrontOfQueue(Logger *logger)
 	// Note that we must be called from the logger work thread, as we don't
 	// run through the message port to transmit this message to the queue
 	CFBundleRef bundle = CFBundleGetMainBundle();
-	CFMutableDataRef encoder = LoggerMessageCreate(0);
+	CFMutableDataRef encoder = LoggerMessageCreate(logger, 0);
 	if (encoder != NULL)
 	{
 		LoggerMessageAddInt32(encoder, LOGMSG_TYPE_CLIENTINFO, PART_KEY_MESSAGE_TYPE);
@@ -2670,7 +2685,7 @@ static void LogMessageRawTo_internal(Logger *logger,
         int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
         LOGGERDBG2(CFSTR("%ld LogMessage"), seq);
 
-        CFMutableDataRef encoder = LoggerMessageCreate(seq);
+        CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
         if (encoder != NULL)
         {
             LoggerMessageAddInt32(encoder, LOGMSG_TYPE_LOG, PART_KEY_MESSAGE_TYPE);
@@ -2715,7 +2730,7 @@ static void LogMessageTo_internal(Logger *logger,
         int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
         LOGGERDBG2(CFSTR("%ld LogMessage"), seq);
 
-        CFMutableDataRef encoder = LoggerMessageCreate(seq);
+        CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
         if (encoder != NULL)
         {
             LoggerMessageAddInt32(encoder, LOGMSG_TYPE_LOG, PART_KEY_MESSAGE_TYPE);
@@ -2761,7 +2776,7 @@ void LogMessage_noFormat(NSString *filename,
         int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
         LOGGERDBG2(CFSTR("%ld LogMessage"), seq);
         
-        CFMutableDataRef encoder = LoggerMessageCreate(seq);
+        CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
         if (encoder != NULL)
         {
             LoggerMessageAddInt32(encoder, LOGMSG_TYPE_LOG, PART_KEY_MESSAGE_TYPE);
@@ -2805,7 +2820,7 @@ static void LogImageTo_internal(Logger *logger,
 		int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
 		LOGGERDBG2(CFSTR("%ld LogImage"), seq);
 
-		CFMutableDataRef encoder = LoggerMessageCreate(seq);
+		CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
 		if (encoder != NULL)
 		{
 			LoggerMessageAddInt32(encoder, LOGMSG_TYPE_LOG, PART_KEY_MESSAGE_TYPE);
@@ -2852,7 +2867,7 @@ void LogImage_noFormat(NSString *filename,
         int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
         LOGGERDBG2(CFSTR("%ld LogImage"), seq);
         
-        CFMutableDataRef encoder = LoggerMessageCreate(seq);
+        CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
         if (encoder != NULL)
         {
             LoggerMessageAddInt32(encoder, LOGMSG_TYPE_LOG, PART_KEY_MESSAGE_TYPE);
@@ -2897,7 +2912,7 @@ static void LogDataTo_internal(Logger *logger,
         int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
         LOGGERDBG2(CFSTR("%ld LogData"), seq);
 
-        CFMutableDataRef encoder = LoggerMessageCreate(seq);
+        CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
         if (encoder != NULL)
         {
             LoggerMessageAddInt32(encoder, LOGMSG_TYPE_LOG, PART_KEY_MESSAGE_TYPE);
@@ -2937,7 +2952,7 @@ void LogData_noFormat(NSString *filename,
         int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
         LOGGERDBG2(CFSTR("%ld LogData"), seq);
         
-        CFMutableDataRef encoder = LoggerMessageCreate(seq);
+        CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
         if (encoder != NULL)
         {
             LoggerMessageAddInt32(encoder, LOGMSG_TYPE_LOG, PART_KEY_MESSAGE_TYPE);
@@ -2972,7 +2987,7 @@ static void LogStartBlockTo_internal(Logger *logger, NSString *format, va_list a
 		int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
 		LOGGERDBG2(CFSTR("%ld LogStartBlock"), seq);
 
-		CFMutableDataRef encoder = LoggerMessageCreate(seq);
+		CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
 		if (encoder != NULL)
 		{
 			LoggerMessageAddInt32(encoder, LOGMSG_TYPE_BLOCKSTART, PART_KEY_MESSAGE_TYPE);
@@ -3139,7 +3154,7 @@ void LogEndBlockTo(Logger *logger)
         int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
         LOGGERDBG2(CFSTR("%ld LogEndBlock"), seq);
 
-        CFMutableDataRef encoder = LoggerMessageCreate(seq);
+        CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
         if (encoder != NULL)
         {
             LoggerMessageAddInt32(encoder, LOGMSG_TYPE_BLOCKEND, PART_KEY_MESSAGE_TYPE);
@@ -3167,7 +3182,7 @@ void LogMarkerTo(Logger *logger, NSString *text)
 		int32_t seq = atomic_fetch_add(&logger->messageSeq, 1);
 		LOGGERDBG2(CFSTR("%ld LogMarker"), seq);
 
-		CFMutableDataRef encoder = LoggerMessageCreate(seq);
+		CFMutableDataRef encoder = LoggerMessageCreate(logger, seq);
 		if (encoder != NULL)
 		{
 			LoggerMessageAddInt32(encoder, LOGMSG_TYPE_MARK, PART_KEY_MESSAGE_TYPE);

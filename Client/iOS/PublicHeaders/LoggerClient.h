@@ -167,6 +167,10 @@ extern void LoggerFlush(Logger *logger, BOOL waitForConnection) NSLOGGER_NOSTRIP
 // If not set, the name and version are retrieved from the main bundle (kCFBundleNameKey +kCFBundleVersionKey)
 extern void LoggerSetClient(Logger *logger, CFStringRef clientName, CFStringRef clientVersion) NSLOGGER_NOSTRIP;
 
+// Explicitly set the timestamp for the next logged message
+// Set tv_sec at 0 to use the current time (with gettimeofday)
+extern void LoggerSetTimestamp(Logger *logger, struct timeval timestamp) NSLOGGER_NOSTRIP;
+
 /* Logging functions. Each function exists in four versions:
  *
  * - one without a Logger instance (uses default logger) and without filename/line/function (no F suffix)
