@@ -1,0 +1,44 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Using Include="System.Diagnostics" />
+    <Using Include="System.Diagnostics.CodeAnalysis" />
+    <Using Include="System.Net" />
+    <Using Include="System.Reflection" />
+    <Using Include="System.Runtime.InteropServices" />
+    <Using Include="System.Runtime.Versioning" />
+    <Using Include="System.Text" />
+  </ItemGroup>
+
+  <PropertyGroup Label="MacNative">
+    <MacNativeLibraryName>lib$(AssemblyName).Native.dylib</MacNativeLibraryName>
+    <MacNativeCompilerFlags>-dynamiclib -framework Foundation -framework CFNetwork -framework SystemConfiguration -fno-objc-arc -mmacosx-version-min=10.13 -Wall -install_name @rpath/$(MacNativeLibraryName)</MacNativeCompilerFlags>
+    <MacNativeCompilerFlags Condition="$(Configuration) == 'Debug'">$(MacNativeCompilerFlags) -Og</MacNativeCompilerFlags>
+    <MacNativeCompilerFlags Condition="$(Configuration) != 'Debug'">$(MacNativeCompilerFlags) -Os -arch x86_64 -arch arm64</MacNativeCompilerFlags>
+  </PropertyGroup>
+
+  <ItemGroup Label="MacNative">
+    <MacNativeSource Include="Native/*.m" />
+    <MacNativeSource Include="../../../Client/iOS/LoggerClient.m" Link="Native/LoggerClient.m" />
+    <MacNativeLibrary Include="$(IntermediateOutputPath)$(MacNativeLibraryName)" Visible="false" />
+  </ItemGroup>
+
+  <ItemGroup Label="Packaging">
+    <None Include="$(IntermediateOutputPath)/$(TargetFramework)/$(MacNativeLibraryName)" Pack="true" PackagePath="runtimes/osx/native" Visible="false" />
+  </ItemGroup>
+
+  <Target Name="CompileMacNativeLibrary" AfterTargets="PrepareForBuild" Inputs="@(MacNativeSource)" Outputs="@(MacNativeLibrary)" Condition="$([MSBuild]::IsOSPlatform('macOS'))">
+    <Exec Command="clang @(MacNativeSource, ' ') $(MacNativeCompilerFlags) -o @(MacNativeLibrary)" />
+    <ItemGroup>
+      <FileWrites Include="@(MacNativeLibrary)" />
+    </ItemGroup>
+  </Target>
+
+</Project>
