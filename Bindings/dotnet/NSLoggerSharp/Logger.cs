@@ -10,19 +10,21 @@ namespace NSLoggerSharp;
 
 public sealed class Logger : IDisposable, IAsyncDisposable
 {
+    private readonly ILoggerConnector _connector;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly LoggerOptions _options;
     private Stream _stream = Stream.Null;
-    private TcpClient? _client;
+    private TcpClient? _tcpClient;
     private int _seq;
 
-    public Logger() : this(new LoggerOptions())
+    public Logger() : this(new LoggerConnector())
     {
     }
 
-    public Logger(LoggerOptions options)
+    public Logger(ILoggerConnector connector, LoggerOptions? options = null)
     {
-        _options = options ?? throw new ArgumentNullException(nameof(options));
+        _connector = connector ?? throw new ArgumentNullException(nameof(connector));
+        _options = options ?? new LoggerOptions();
     }
 
     public void Connect()
@@ -38,26 +40,23 @@ public sealed class Logger : IDisposable, IAsyncDisposable
     [SuppressMessage("ReSharper", "MethodHasAsyncOverloadWithCancellation")]
     private async Task ConnectInternalAsync(bool async, CancellationToken cancellationToken = default)
     {
-        _client = new TcpClient();
-
         if (async)
-            await _client.ConnectAsync(_options.ViewerHost, cancellationToken);
+            _tcpClient = await _connector.ConnectAsync(cancellationToken);
         else
-            _client.Connect(_options.ViewerHost);
+            _tcpClient = _connector.Connect();
 
-        var sslStream = new SslStream(_client.GetStream(), leaveInnerStreamOpen: false, _options.ValidateCertificate, userCertificateSelectionCallback: null);
+        var sslStream = new SslStream(_tcpClient.GetStream(), leaveInnerStreamOpen: false);
 
         _stream = sslStream;
 
-        var authenticationOptions = new SslClientAuthenticationOptions { TargetHost = _options.ViewerHost.ToString() };
         if (async)
         {
-            await sslStream.AuthenticateAsClientAsync(authenticationOptions, cancellationToken);
+            await sslStream.AuthenticateAsClientAsync(_connector.AuthenticationOptions, cancellationToken);
             await LogInternalAsync(new Message.ClientInfo(_options), async: true, cancellationToken);
         }
         else
         {
-            sslStream.AuthenticateAsClient(authenticationOptions);
+            sslStream.AuthenticateAsClient(_connector.AuthenticationOptions);
             LogInternalAsync(new Message.ClientInfo(_options), async: false, cancellationToken).GetAwaiter().GetResult();
         }
     }
@@ -103,8 +102,8 @@ public sealed class Logger : IDisposable, IAsyncDisposable
         {
             _stream.Dispose();
             _stream = new DisposedStream();
-            _client?.Dispose();
-            _client = null;
+            _tcpClient?.Dispose();
+            _tcpClient = null;
         });
         _semaphore.Dispose();
     }
@@ -115,8 +114,8 @@ public sealed class Logger : IDisposable, IAsyncDisposable
         {
             await _stream.DisposeAsync();
             _stream = new DisposedStream();
-            _client?.Dispose();
-            _client = null;
+            _tcpClient?.Dispose();
+            _tcpClient = null;
         }, CancellationToken.None);
         _semaphore.Dispose();
     }

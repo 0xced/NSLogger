@@ -8,9 +8,13 @@ using Zeroconf;
 
 namespace NSLoggerSharp.Zeroconf;
 
-public class BonjourResolver : IBonjourResolver
+public class ZeroconfConnector : LoggerConnector
 {
-    public async Task<IPEndPoint> ResolveBonjourServiceAsync(string? serviceName, CancellationToken cancellationToken)
+    private readonly string? _serviceName;
+
+    public ZeroconfConnector(string? serviceName) => _serviceName = serviceName;
+
+    protected override async Task<IPEndPoint> GetEndPointAsync(CancellationToken cancellationToken = default)
     {
         using var source = new CancellationTokenSource();
         using var linkedSource = CancellationTokenSource.CreateLinkedTokenSource(source.Token, cancellationToken);
@@ -22,7 +26,7 @@ public class BonjourResolver : IBonjourResolver
             {
                 try
                 {
-                    var service = GetService(host, serviceName);
+                    var service = GetService(host);
                     viewerHost = new IPEndPoint(IPAddress.Parse(host.IPAddress), service.Port);
                     source.Cancel();
                 }
@@ -48,14 +52,14 @@ public class BonjourResolver : IBonjourResolver
         };
     }
 
-    private static IService GetService(IZeroconfHost host, string? serviceName)
+    private IService GetService(IZeroconfHost host)
     {
-        if (serviceName != null)
+        if (_serviceName != null)
         {
-            if (host.Services.TryGetValue($"{serviceName}._nslogger-ssl._tcp.local.", out var service))
+            if (host.Services.TryGetValue($"{_serviceName}._nslogger-ssl._tcp.local.", out var service))
                 return service;
 
-            throw new BonjourServiceNotFoundException(host, serviceName);
+            throw new BonjourServiceNotFoundException(host, _serviceName);
         }
 
         var unfilteredServices = host.Services.Values.Where(e => !e.FilterClients()).ToList();

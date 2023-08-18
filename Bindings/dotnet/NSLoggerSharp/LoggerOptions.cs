@@ -1,7 +1,5 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
-using System.Net.Security;
 using System.Reflection;
 
 namespace NSLoggerSharp;
@@ -9,8 +7,6 @@ namespace NSLoggerSharp;
 [SuppressMessage("ReSharper", "AutoPropertyCanBeMadeGetOnly.Global")]
 public class LoggerOptions
 {
-    public IPEndPoint ViewerHost { get; init; } = new(IPAddress.Loopback, 50000);
-
     public string? ClientName { get; init; } = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyTitleAttribute>()?.Title;
 
     public string? ClientVersion { get; init; } = Assembly.GetEntryAssembly()?.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
@@ -21,8 +17,6 @@ public class LoggerOptions
     public string? OsName { get; init; } = GetOsName();
 
     public string? OsVersion { get; init; } = Environment.OSVersion.Version.ToString();
-
-    public RemoteCertificateValidationCallback? ValidateCertificate { get; init; } = (_, certificate, _, _) => certificate?.Issuer.Contains("fpillet@gmail.com") ?? false;
 
     private static string GetOsName()
     {
