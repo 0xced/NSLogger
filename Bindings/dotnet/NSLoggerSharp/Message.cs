@@ -5,13 +5,13 @@ namespace NSLoggerSharp;
 
 public abstract class Message
 {
-    public int Level { get; }
-    public string? Domain { get; }
-    public string? FileName { get; }
-    public int LineNumber { get; }
-    public string? FunctionName { get; }
-    public string ThreadName { get; }
-    public DateTimeOffset Timestamp { get; }
+    internal int Level { get; }
+    internal string? Domain { get; }
+    internal string? FileName { get; }
+    internal int LineNumber { get; }
+    internal string? FunctionName { get; }
+    internal string ThreadName { get; }
+    internal DateTimeOffset Timestamp { get; }
 
     private Message(int level, string? domain, string? fileName, int lineNumber, string? functionName, string? threadName, DateTimeOffset? timestamp)
     {
@@ -24,9 +24,21 @@ public abstract class Message
         Timestamp = timestamp ?? DateTimeOffset.Now;
     }
 
-    public class Text : Message
+    public static Message Text(string text, int level, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
+        => new TextMessage(text, level, domain, fileName, lineNumber, functionName, threadName, timestamp);
+
+    public static Message Data(byte[] data, int level, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
+        => new DataMessage(data, level, domain, fileName, lineNumber, functionName, threadName, timestamp);
+
+    public static Message Image(byte[] data, int level, Size? size = null, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
+        => new ImageMessage(data, level, size, domain, fileName, lineNumber, functionName, threadName, timestamp);
+
+    public static Message Mark(string? text = null)
+        => new MarkMessage(text);
+
+    internal class TextMessage : Message
     {
-        public Text(string text, int level, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
+        public TextMessage(string text, int level, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
             : base(level, domain, fileName, lineNumber, functionName, threadName, timestamp)
         {
             Payload = text;
@@ -35,9 +47,9 @@ public abstract class Message
         public string Payload { get; }
     }
 
-    public class Data : Message
+    internal class DataMessage : Message
     {
-        public Data(byte[] data, int level, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
+        public DataMessage(byte[] data, int level, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
             : base(level, domain, fileName, lineNumber, functionName, threadName, timestamp)
         {
             Payload = data;
@@ -46,9 +58,9 @@ public abstract class Message
         public byte[] Payload { get; }
     }
 
-    public class Image : Message
+    internal class ImageMessage : Message
     {
-        public Image(byte[] data, int level, Size? size = null, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
+        public ImageMessage(byte[] data, int level, Size? size = null, string? domain = null, string? fileName = null, int lineNumber = 0, string? functionName = null, string? threadName = null, DateTimeOffset? timestamp = null)
             : base(level, domain, fileName, lineNumber, functionName, threadName, timestamp)
         {
             Payload = data;
@@ -60,25 +72,9 @@ public abstract class Message
         public Size? Size { get; }
     }
 
-#if MESSAGE_BLOCK_SUPPORT
-    public class StartBlock : Message
+    internal class MarkMessage : Message
     {
-        public StartBlock() : base(default, default, default, default, default, default, default)
-        {
-        }
-    }
-
-    public class EndBlock : Message
-    {
-        public EndBlock() : base(default, default, default, default, default, default, default)
-        {
-        }
-    }
-#endif
-
-    public class Mark : Message
-    {
-        public Mark(string? text = null) : base(default, default, default, default, default, default, default)
+        public MarkMessage(string? text = null) : base(default, default, default, default, default, default, default)
         {
             Payload = text ?? $"{DateTimeOffset.Now:G}";
         }

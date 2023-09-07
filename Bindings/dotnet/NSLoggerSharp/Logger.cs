@@ -1,8 +1,6 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
-using System.Net.Security;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -14,17 +12,24 @@ public sealed class Logger : IDisposable, IAsyncDisposable
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly LoggerOptions _options;
     private Stream _stream = Stream.Null;
-    private TcpClient? _tcpClient;
     private int _seq;
 
-    public Logger() : this(new LoggerConnector())
+    public Logger() : this(new LoggerConnector(), new LoggerOptions())
     {
     }
 
-    public Logger(ILoggerConnector connector, LoggerOptions? options = null)
+    public Logger(ILoggerConnector connector) : this(connector, new LoggerOptions())
+    {
+    }
+
+    public Logger(LoggerOptions options) : this(new LoggerConnector(), options)
+    {
+    }
+
+    public Logger(ILoggerConnector connector, LoggerOptions options)
     {
         _connector = connector ?? throw new ArgumentNullException(nameof(connector));
-        _options = options ?? new LoggerOptions();
+        _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
     public void Connect()
@@ -41,22 +46,13 @@ public sealed class Logger : IDisposable, IAsyncDisposable
     private async Task ConnectInternalAsync(bool async, CancellationToken cancellationToken = default)
     {
         if (async)
-            _tcpClient = await _connector.ConnectAsync(cancellationToken);
-        else
-            _tcpClient = _connector.Connect();
-
-        var sslStream = new SslStream(_tcpClient.GetStream(), leaveInnerStreamOpen: false);
-
-        _stream = sslStream;
-
-        if (async)
         {
-            await sslStream.AuthenticateAsClientAsync(_connector.AuthenticationOptions, cancellationToken);
+            _stream = await _connector.ConnectAsync(cancellationToken);
             await LogInternalAsync(new Message.ClientInfo(_options), async: true, cancellationToken);
         }
         else
         {
-            sslStream.AuthenticateAsClient(_connector.AuthenticationOptions);
+            _stream = _connector.Connect();
             LogInternalAsync(new Message.ClientInfo(_options), async: false, cancellationToken).GetAwaiter().GetResult();
         }
     }
@@ -77,9 +73,9 @@ public sealed class Logger : IDisposable, IAsyncDisposable
         if (_stream == Stream.Null)
         {
             if (async)
-                await ConnectAsync(cancellationToken);
+                await ConnectInternalAsync(async: true, cancellationToken);
             else
-                Connect();
+                ConnectInternalAsync(async: false, cancellationToken).GetAwaiter().GetResult();
         }
 
         // TODO: writing to the stream might fail => the connection should be automatically retried and messages buffered
@@ -102,8 +98,6 @@ public sealed class Logger : IDisposable, IAsyncDisposable
         {
             _stream.Dispose();
             _stream = new DisposedStream();
-            _tcpClient?.Dispose();
-            _tcpClient = null;
         });
         _semaphore.Dispose();
     }
@@ -114,8 +108,6 @@ public sealed class Logger : IDisposable, IAsyncDisposable
         {
             await _stream.DisposeAsync();
             _stream = new DisposedStream();
-            _tcpClient?.Dispose();
-            _tcpClient = null;
         }, CancellationToken.None);
         _semaphore.Dispose();
     }

@@ -67,7 +67,7 @@ public class DefaultCommand : AsyncCommand<DefaultCommand.Settings>
 
         var imageData = await File.ReadAllBytesAsync(fileName, _cancellationToken);
 
-        var connector = GetLoggerConnector(settings.Viewer, settings.Implementation);
+        using var connector = GetLoggerConnector(settings.Viewer, settings.Implementation);
 
         _console.Write("Connecting to ");
         if (settings.Viewer == null)
@@ -79,21 +79,21 @@ public class DefaultCommand : AsyncCommand<DefaultCommand.Settings>
         await using var logger = new Logger(connector);
         await logger.ConnectAsync(_cancellationToken);
 
-        await logger.LogAsync(new Message.Text("👋 Hello, world!", level: 0), _cancellationToken);
-        await logger.LogAsync(new Message.Text($"First line{Environment.NewLine}Second line", level: 1), _cancellationToken);
-        await Task.Yield();
-        await logger.LogAsync(new Message.Text("With a domain", level: 2, domain: "Domain 📗 with emoji"), _cancellationToken);
-        await logger.LogAsync(new Message.Mark(), _cancellationToken);
+        await logger.LogAsync(Message.Text("👋 Hello, world!", level: 0), _cancellationToken);
+        await logger.LogAsync(Message.Text($"First line{Environment.NewLine}Second line", level: 1), _cancellationToken);
+        await Task.Delay(TimeSpan.FromSeconds(1), _cancellationToken);
+        await logger.LogAsync(Message.Text("With a domain", level: 2, domain: "Custom 📗 domain"), _cancellationToken);
+        await logger.LogAsync(Message.Mark(), _cancellationToken);
         var frame = new StackFrame(skipFrames: 0, needFileInfo: true);
-        await logger.LogAsync(new Message.Text("With file and function", level: 3, fileName: frame.GetFileName(), lineNumber: frame.GetFileLineNumber() + 1, functionName: frame.GetMethod()?.Name), _cancellationToken);
-        await logger.LogAsync(new Message.Text("With a thread name", level: 4, threadName: "Custom 🧵 name"), _cancellationToken);
-        await logger.LogAsync(new Message.Data(imageData, level: 5), _cancellationToken);
-        await logger.LogAsync(new Message.Image(imageData, level: 6), _cancellationToken);
+        await logger.LogAsync(Message.Text("With file and function", level: 3, fileName: frame.GetFileName(), lineNumber: frame.GetFileLineNumber() + 1, functionName: frame.GetMethod()?.Name), _cancellationToken);
+        await logger.LogAsync(Message.Text("With a thread name", level: 4, threadName: "Custom 🧵 name"), _cancellationToken);
+        await logger.LogAsync(Message.Data(imageData, level: 5), _cancellationToken);
+        await logger.LogAsync(Message.Image(imageData, level: 6), _cancellationToken);
 
         return 0;
     }
 
-    private static ILoggerConnector GetLoggerConnector(string? viewer, BonjourImplementation bonjourImplementation)
+    private static LoggerConnector GetLoggerConnector(string? viewer, BonjourImplementation bonjourImplementation)
     {
         if (viewer != null && IPEndPoint.TryParse(viewer, out var viewerHost))
         {

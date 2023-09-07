@@ -42,17 +42,7 @@ internal static class StreamExtensions
             if (clientInfo.OsVersion != null)
                 writer.WriteString(PartKey.OsVersion, clientInfo.OsVersion);
         }
-#if MESSAGE_BLOCK_SUPPORT
-        else if (message is Message.StartBlock)
-        {
-            writer.WriteInt(PartKey.MessageType, (int)MessageType.BlockStart);
-        }
-        else if (message is Message.EndBlock)
-        {
-            writer.WriteInt(PartKey.MessageType, (int)MessageType.BlockEnd);
-        }
-#endif
-        else if (message is Message.Mark mark)
+        else if (message is Message.MarkMessage mark)
         {
             writer.WriteInt(PartKey.MessageType, (int)MessageType.Mark);
             writer.WriteString(PartKey.Message, mark.Payload);
@@ -72,15 +62,15 @@ internal static class StreamExtensions
             if (message.FunctionName != null)
                 writer.WriteString(PartKey.FunctionName, message.FunctionName);
 
-            if (message is Message.Text text)
+            if (message is Message.TextMessage text)
             {
                 writer.WriteString(PartKey.Message, text.Payload);
             }
-            else if (message is Message.Data data)
+            else if (message is Message.DataMessage data)
             {
                 writer.WriteData(PartKey.Message, data.Payload);
             }
-            else if (message is Message.Image image)
+            else if (message is Message.ImageMessage image)
             {
                 if (image.Size.HasValue)
                 {
