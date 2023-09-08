@@ -73,6 +73,9 @@ public class LoggerConnector : ILoggerConnector, IDisposable
 
     public virtual SslClientAuthenticationOptions AuthenticationOptions { get; } = new()
     {
+        // Throws ArgumentNullException if null on .NET 6 (can be null on .NET 7 onwards)
+        // See https://github.com/dotnet/runtime/blob/v6.0.21/src/libraries/System.Net.Security/src/System/Net/Security/SslStream.Implementation.cs#L71-L74)
+        TargetHost = "",
         // https://github.com/fpillet/NSLogger/blob/e8c453142da7051462cca189d3fcee74de0500ea/Desktop/Resources/NSLoggerCertReq.conf#L10
         RemoteCertificateValidationCallback = (_, certificate, _, _) => certificate?.Issuer.Contains("NSLogger self-signed SSL") ?? false,
     };
