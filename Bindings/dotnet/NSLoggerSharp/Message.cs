@@ -89,11 +89,12 @@ public abstract class Message
         public string? ClientName => _options.ClientName;
         public string? ClientVersion => _options.ClientVersion;
         public string? ClientModel => _options.ClientModel;
+        public string? ClientUniqueIdentifier => _options.ClientUniqueIdentifier;
         public string? OsName => _options.OsName;
         public string? OsVersion => _options.OsVersion;
 
         public ClientInfo(LoggerOptions options)
-            : base(default, default, default, default, default, default, default)
+            : base(default, default, default, default, default, "", default)
         {
             _options = options;
         }

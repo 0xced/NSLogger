@@ -37,6 +37,8 @@ internal static class StreamExtensions
                 writer.WriteString(PartKey.ClientVersion, clientInfo.ClientVersion);
             if (clientInfo.ClientModel != null)
                 writer.WriteString(PartKey.ClientModel, clientInfo.ClientModel);
+            if (clientInfo.ClientUniqueIdentifier != null)
+                writer.WriteString(PartKey.UniqueId, clientInfo.ClientUniqueIdentifier);
             if (clientInfo.OsName != null)
                 writer.WriteString(PartKey.OsName, clientInfo.OsName);
             if (clientInfo.OsVersion != null)

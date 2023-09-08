@@ -14,6 +14,8 @@ public class LoggerOptions
 
     public string? ClientModel { get; init; } = null;
 
+    public string? ClientUniqueIdentifier { get; init; } = null;
+
     public string? OsName { get; init; } = GetOsName();
 
     public string? OsVersion { get; init; } = Environment.OSVersion.Version.ToString();
