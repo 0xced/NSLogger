@@ -11,7 +11,7 @@ namespace NSLoggerSharp;
 public class LoggerConnector : ILoggerConnector, IDisposable
 {
     private readonly IPEndPoint _endPoint;
-    private readonly TcpClient _client = new();
+    private TcpClient? _client;
 
     protected virtual bool UseTls { get; } = true;
 
@@ -35,13 +35,15 @@ public class LoggerConnector : ILoggerConnector, IDisposable
     {
         if (disposing)
         {
-            _client.Dispose();
+            _client?.Dispose();
         }
     }
 
     public Stream Connect()
     {
         var remoteEndPoint = GetEndPoint();
+        _client?.Dispose();
+        _client = new TcpClient();
         _client.Connect(remoteEndPoint);
         var stream = _client.GetStream();
         if (UseTls)
@@ -56,6 +58,8 @@ public class LoggerConnector : ILoggerConnector, IDisposable
     public async Task<Stream> ConnectAsync(CancellationToken cancellationToken = default)
     {
         var remoteEndPoint = await GetEndPointAsync(cancellationToken);
+        _client?.Dispose();
+        _client = new TcpClient();
         await _client.ConnectAsync(remoteEndPoint, cancellationToken);
         var stream = _client.GetStream();
         if (UseTls)

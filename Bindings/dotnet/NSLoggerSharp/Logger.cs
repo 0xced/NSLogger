@@ -67,8 +67,9 @@ public sealed class Logger : IDisposable, IAsyncDisposable
         await CriticalSectionAsync(message, async (m, ct) => await LogInternalAsync(m, async: true, ct), cancellationToken);
     }
 
-    [SuppressMessage("ReSharper", "MethodHasAsyncOverloadWithCancellation")]
-    private async Task LogInternalAsync(Message message, bool async, CancellationToken cancellationToken = default)
+    [SuppressMessage("ReSharper", "MethodHasAsyncOverload", Justification = "Internal method having both sync and async paths")]
+    [SuppressMessage("ReSharper", "MethodHasAsyncOverloadWithCancellation", Justification = "Internal method having both sync and async paths")]
+    private async Task LogInternalAsync(Message message, bool async, CancellationToken cancellationToken = default, bool retry = true)
     {
         if (_stream == Stream.Null)
         {
@@ -78,17 +79,35 @@ public sealed class Logger : IDisposable, IAsyncDisposable
                 ConnectInternalAsync(async: false, cancellationToken).GetAwaiter().GetResult();
         }
 
-        // TODO: writing to the stream might fail => the connection should be automatically retried and messages buffered
-        // See https://github.com/serilog-contrib/Serilog.Sinks.Network/blob/ce131dcea588d959f80e06965586dd5d35e6371a/Serilog.Sinks.Network/Sinks/TCP/TCPSocketWriter.cs#L31-L48 for inspiration
-        if (async)
+        try
         {
-            await _stream.WriteAsync(message, _seq++, cancellationToken);
-            await _stream.FlushAsync(cancellationToken);
+            if (async)
+            {
+                await _stream.WriteAsync(message, _seq++, cancellationToken);
+                await _stream.FlushAsync(cancellationToken);
+            }
+            else
+            {
+                _stream.Write(message, _seq++);
+                _stream.Flush();
+            }
         }
-        else
+        catch (IOException) when (retry)
         {
-            _stream.Write(message, _seq++);
-            _stream.Flush();
+            // TODO: could buffer the messages in a queue instead of just retrying once
+            // For inspiration, see https://github.com/serilog-contrib/Serilog.Sinks.Network/blob/ce131dcea588d959f80e06965586dd5d35e6371a/Serilog.Sinks.Network/Sinks/TCP/TCPSocketWriter.cs#L31-L48
+            // Also, detecting failure by catching exceptions is not enough! See https://stackoverflow.com/questions/31322716/tcpclient-networkstream-not-detecting-disconnection
+            if (async)
+                await _stream.DisposeAsync();
+            else
+                _stream.Dispose();
+
+            _stream = Stream.Null;
+
+            if (async)
+                await LogInternalAsync(message, async, cancellationToken, retry: false);
+            else
+                LogInternalAsync(message, async, cancellationToken, retry: false).GetAwaiter().GetResult();
         }
     }
 
