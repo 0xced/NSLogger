@@ -26,13 +26,12 @@ public class BonjourSharpConnector : LoggerConnector
         return result;
     }
 
-    private static void OnServiceBrowsed(DnsServiceRef sdRef, DnsServiceFlags flags, uint interfaceIndex, DnsServiceError errorCode, IntPtr serviceName, string regType, string replyDomain, IntPtr context)
+    private static void OnServiceBrowsed(DnsServiceRef sdRef, DnsServiceFlags flags, uint interfaceIndex, DnsServiceError errorCode, string serviceName, string regType, string replyDomain, IntPtr context)
     {
-        var name = Marshal.PtrToStringUTF8(serviceName) ?? throw new ArgumentException("The service name can not be null.", nameof(serviceName));
         var ctx = GCHandle.FromIntPtr(context).Target as Context ?? throw new ArgumentException($"Must hold a {nameof(Context)} instance.", nameof(context));
-        if (ctx.ServiceName == null || ctx.ServiceName == name)
+        if (ctx.ServiceName == null || ctx.ServiceName == serviceName)
         {
-            var error = DnsServiceDiscovery.DnsServiceResolve(out var resolveRef, DnsServiceFlags.None, interfaceIndex, name, regType, replyDomain, OnServiceResolved, context);
+            var error = DnsServiceDiscovery.DnsServiceResolve(out var resolveRef, DnsServiceFlags.None, interfaceIndex, serviceName, regType, replyDomain, OnServiceResolved, context);
             while (DnsServiceDiscovery.DnsServiceProcessResult(resolveRef) == DnsServiceError.NoError && !ctx.CancellationTokenSource.IsCancellationRequested)
             {
             }
@@ -40,9 +39,8 @@ public class BonjourSharpConnector : LoggerConnector
         }
     }
 
-    private static void OnServiceResolved(DnsServiceRef sdref, DnsServiceFlags flags, uint interfaceindex, DnsServiceError errorcode, IntPtr fullname, string hosttarget, ushort port, ushort txtlen, IntPtr txtrecord, IntPtr context)
+    private static void OnServiceResolved(DnsServiceRef sdRef, DnsServiceFlags flags, uint interfaceIndex, DnsServiceError errorCode, string fullName, string hostTarget, ushort port, ushort txtLen, IntPtr txtRecord, IntPtr context)
     {
-        var name = Marshal.PtrToStringUTF8(fullname) ?? throw new ArgumentException("The service name can not be null.", nameof(fullname));
         var ctx = GCHandle.FromIntPtr(context).Target as Context ?? throw new ArgumentException($"Must hold a {nameof(Context)} instance.", nameof(context));
         ctx.CancellationTokenSource.Cancel();
     }
