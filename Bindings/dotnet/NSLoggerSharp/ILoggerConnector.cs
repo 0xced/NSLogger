@@ -1,12 +1,16 @@
-﻿using System.IO;
+﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace NSLoggerSharp;
 
-public interface ILoggerConnector
+public interface ILoggerConnector : IDisposable, IAsyncDisposable
 {
-    Stream Connect();
+    void Connect();
 
-    Task<Stream> ConnectAsync(CancellationToken cancellationToken = default);
+    Task ConnectAsync(CancellationToken cancellationToken = default);
+
+    void Write(ReadOnlySpan<byte> messageData);
+
+    ValueTask WriteAsync(ReadOnlyMemory<byte> messageData, CancellationToken cancellationToken);
 }

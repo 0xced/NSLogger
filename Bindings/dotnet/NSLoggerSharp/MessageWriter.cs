@@ -1,9 +1,6 @@
 using System;
 using System.Buffers;
-using System.IO;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace NSLoggerSharp;
 
@@ -69,17 +66,7 @@ internal class MessageWriter
         _partCount++;
     }
 
-    public void Finalize(Stream stream)
-    {
-        FinalizeInternalAsync(stream, async: false).GetAwaiter().GetResult();
-    }
-
-    public async Task FinalizeAsync(Stream stream, CancellationToken cancellationToken = default)
-    {
-        await FinalizeInternalAsync(stream, async: true, cancellationToken);
-    }
-
-    private async Task FinalizeInternalAsync(Stream stream, bool async, CancellationToken cancellationToken = default)
+    public ArrayBufferWriter<byte> FinalizeMessage()
     {
         const int totalSizeLength = sizeof(uint);
         const int partCountLength = sizeof(ushort);
@@ -91,9 +78,6 @@ internal class MessageWriter
         messageWriter.WriteShort(_partCount);
         messageWriter.Write(_writer.WrittenSpan);
 
-        if (async)
-            await stream.WriteAsync(messageWriter.WrittenMemory, cancellationToken);
-        else
-            stream.Write(messageWriter.WrittenSpan);
+        return messageWriter;
     }
 }
