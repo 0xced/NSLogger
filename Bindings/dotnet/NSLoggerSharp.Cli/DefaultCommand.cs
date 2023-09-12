@@ -67,7 +67,7 @@ public class DefaultCommand : AsyncCommand<DefaultCommand.Settings>
 
         var imageData = await File.ReadAllBytesAsync(fileName, _cancellationToken);
 
-        using var connector = GetLoggerConnector(settings.Viewer, settings.Implementation);
+        var connector = GetLoggerConnector(settings.Viewer, settings.Implementation);
 
         _console.Write("Connecting to ");
         if (settings.Viewer == null)
@@ -93,7 +93,7 @@ public class DefaultCommand : AsyncCommand<DefaultCommand.Settings>
         return 0;
     }
 
-    private static LoggerConnector GetLoggerConnector(string? viewer, BonjourImplementation bonjourImplementation)
+    private static ILoggerConnector GetLoggerConnector(string? viewer, BonjourImplementation bonjourImplementation)
     {
         if (viewer != null && IPEndPoint.TryParse(viewer, out var viewerHost))
         {

@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.Sockets;
@@ -11,8 +10,6 @@ namespace NSLoggerSharp;
 public class LoggerConnector : ILoggerConnector
 {
     private readonly IPEndPoint _endPoint;
-    private Stream _stream = Stream.Null;
-    private TcpClient? _client;
 
     protected virtual bool UseTls { get; } = true;
 
@@ -26,73 +23,34 @@ public class LoggerConnector : ILoggerConnector
         UseTls = useTls;
     }
 
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            _stream.Dispose();
-            _stream = new DisposedStream();
-            _client?.Dispose();
-            _client = null;
-        }
-    }
-
-    public virtual async ValueTask DisposeAsync()
-    {
-        await _stream.DisposeAsync();
-        _stream = new DisposedStream();
-        _client?.Dispose();
-        _client = null;
-    }
-
-    public void Connect()
+    public ILoggerConnection Connect()
     {
         var remoteEndPoint = GetEndPoint();
-        _client?.Dispose();
-        _client = new TcpClient();
-        _client.Connect(remoteEndPoint);
-        var stream = _client.GetStream();
-        _stream = stream;
+        var client = new TcpClient();
+        client.Connect(remoteEndPoint);
+        var stream = client.GetStream();
         if (UseTls)
         {
             var tlsStream = new SslStream(stream, leaveInnerStreamOpen: false);
             tlsStream.AuthenticateAsClient(AuthenticationOptions);
-            _stream = tlsStream;
+            return new LoggerConnection(client, tlsStream);
         }
+        return new LoggerConnection(client, stream);
     }
 
-    public async Task ConnectAsync(CancellationToken cancellationToken = default)
+    public async Task<ILoggerConnection> ConnectAsync(CancellationToken cancellationToken = default)
     {
         var remoteEndPoint = await GetEndPointAsync(cancellationToken);
-        _client?.Dispose();
-        _client = new TcpClient();
-        await _client.ConnectAsync(remoteEndPoint, cancellationToken);
-        var stream = _client.GetStream();
-        _stream = stream;
+        var client = new TcpClient();
+        await client.ConnectAsync(remoteEndPoint, cancellationToken);
+        var stream = client.GetStream();
         if (UseTls)
         {
             var tlsStream = new SslStream(stream, leaveInnerStreamOpen: false);
             await tlsStream.AuthenticateAsClientAsync(AuthenticationOptions, cancellationToken);
-            _stream = tlsStream;
+            return new LoggerConnection(client, tlsStream);
         }
-    }
-
-    public void Write(ReadOnlySpan<byte> messageData)
-    {
-        _stream.Write(messageData);
-        _stream.Flush();
-    }
-
-    public async ValueTask WriteAsync(ReadOnlyMemory<byte> messageData, CancellationToken cancellationToken)
-    {
-        await _stream.WriteAsync(messageData, cancellationToken);
-        await _stream.FlushAsync(cancellationToken);
+        return new LoggerConnection(client, stream);
     }
 
     protected virtual IPEndPoint GetEndPoint() => GetEndPointAsync().GetAwaiter().GetResult();

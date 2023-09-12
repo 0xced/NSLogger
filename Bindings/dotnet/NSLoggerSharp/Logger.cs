@@ -11,7 +11,7 @@ public sealed class Logger : IDisposable, IAsyncDisposable
     private readonly ILoggerConnector _connector;
     private readonly SemaphoreSlim _semaphore = new(1, 1);
     private readonly LoggerOptions _options;
-    private bool _isConnected;
+    private ILoggerConnection? _connection;
     private int _seq;
 
     public Logger() : this(new LoggerConnector(), new LoggerOptions())
@@ -47,14 +47,12 @@ public sealed class Logger : IDisposable, IAsyncDisposable
     {
         if (async)
         {
-            await _connector.ConnectAsync(cancellationToken);
-            _isConnected = true;
+            _connection = await _connector.ConnectAsync(cancellationToken);
             await LogInternalAsync(Message.ClientInfo(_options), async: true, cancellationToken);
         }
         else
         {
-            _connector.Connect();
-            _isConnected = true;
+            _connection = _connector.Connect();
             LogInternalAsync(Message.ClientInfo(_options), async: false, cancellationToken).GetAwaiter().GetResult();
         }
     }
@@ -73,7 +71,7 @@ public sealed class Logger : IDisposable, IAsyncDisposable
     [SuppressMessage("ReSharper", "MethodHasAsyncOverloadWithCancellation", Justification = "Internal method having both sync and async paths")]
     private async Task LogInternalAsync(Message message, bool async, CancellationToken cancellationToken = default, bool retry = true)
     {
-        if (!_isConnected)
+        if (_connection == null)
         {
             if (async)
                 await ConnectInternalAsync(async: true, cancellationToken);
@@ -85,16 +83,21 @@ public sealed class Logger : IDisposable, IAsyncDisposable
         {
             var messageData = message.Serialize(_seq++);
             if (async)
-                await _connector.WriteAsync(messageData.WrittenMemory, cancellationToken);
+                await _connection!.SendAsync(messageData.WrittenMemory, cancellationToken);
             else
-                _connector.Write(messageData.WrittenSpan);
+                _connection!.Send(messageData.WrittenSpan);
         }
         catch (IOException) when (retry)
         {
             // TODO: could buffer the messages in a queue instead of just retrying once
             // For inspiration, see https://github.com/serilog-contrib/Serilog.Sinks.Network/blob/ce131dcea588d959f80e06965586dd5d35e6371a/Serilog.Sinks.Network/Sinks/TCP/TCPSocketWriter.cs#L31-L48
             // Also, detecting failure by catching exceptions is not enough! See https://stackoverflow.com/questions/31322716/tcpclient-networkstream-not-detecting-disconnection
-            _isConnected = false;
+            if (_connection != null && async)
+                await _connection.DisposeAsync();
+            else
+                _connection?.Dispose();
+
+            _connection = null;
             _seq = 0;
 
             if (async)
@@ -106,13 +109,24 @@ public sealed class Logger : IDisposable, IAsyncDisposable
 
     public void Dispose()
     {
-        CriticalSection(() => _connector.Dispose());
+        CriticalSection(() =>
+        {
+            _connection?.Dispose();
+            _connection = null;
+        });
         _semaphore.Dispose();
     }
 
     public async ValueTask DisposeAsync()
     {
-        await CriticalSectionAsync(async _ => await _connector.DisposeAsync(), CancellationToken.None);
+        await CriticalSectionAsync(async _ =>
+        {
+            if (_connection != null)
+            {
+                await _connection.DisposeAsync();
+                _connection = null;
+            }
+        }, CancellationToken.None);
         _semaphore.Dispose();
     }
 
