@@ -71,6 +71,7 @@ internal class MessageWriter
         const int totalSizeLength = sizeof(uint);
         const int partCountLength = sizeof(ushort);
 
+        // Ideally we could rewind to the start of _writer to write totalSize + _partCount but that's not really supported, see https://github.com/dotnet/runtime/issues/28279
         var messageWriter = new ArrayBufferWriter<byte>(totalSizeLength + partCountLength + _writer.WrittenSpan.Length);
 
         var totalSize = _writer.WrittenSpan.Length + partCountLength;
