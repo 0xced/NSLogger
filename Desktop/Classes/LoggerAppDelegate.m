@@ -28,7 +28,6 @@
  * SOFTWARE,   EVEN  IF   ADVISED  OF   THE  POSSIBILITY   OF  SUCH   DAMAGE.
  * 
  */
-#import <HockeySDK/HockeySDK.h>
 #import "LoggerAppDelegate.h"
 #import "LoggerNativeTransport.h"
 #import "LoggerWindowController.h"
@@ -217,16 +216,6 @@ NSString * const kPref_ApplicationFilterSet = @"appFilterSet";
 
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
-	// Initialize HockeyApp if properly configured
-	NSDictionary *hockeyConf = [NSDictionary dictionaryWithContentsOfFile:[[NSBundle mainBundle] pathForResource:@"HockeyConf" ofType:@"plist"]];
-	NSString *hockeyAppID = hockeyConf[@"appID"];
-	if ([hockeyAppID isKindOfClass:[NSString class]] && [hockeyAppID length])
-	{
-		BITHockeyManager *shm = [BITHockeyManager sharedHockeyManager];
-		[shm configureWithIdentifier:hockeyAppID];
-		[shm startManager];
-	}
-	
 	// Listen to prefs change notifications, where we start / stop transports on demand
 	[[NSNotificationCenter defaultCenter] addObserver:self
 											 selector:@selector(prefsChangeNotification:)
