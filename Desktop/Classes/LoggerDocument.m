@@ -99,7 +99,7 @@
 		[array addObject:[NSString stringWithFormat:NSLocalizedString(@"Run %d", @""), reconnectionCount]];
 	}
 	else for (NSInteger i=0; i < count; i++)
-		[array addObject:[NSString stringWithFormat:NSLocalizedString(@"Run %d of %d", @""), i+1, count]];
+		[array addObject:[NSString stringWithFormat:NSLocalizedString(@"Run %ld of %ld", @""), i+1, count]];
 	return array;
 }
 

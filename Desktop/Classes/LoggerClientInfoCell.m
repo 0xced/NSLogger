@@ -38,7 +38,7 @@
 {
 	NSMutableDictionary *attrs = [self.defaultAttributes[@"text"] mutableCopy];
 	NSMutableParagraphStyle *style = [attrs[NSParagraphStyleAttributeName] mutableCopy];
-	[style setAlignment:NSCenterTextAlignment];
+	[style setAlignment:NSTextAlignmentCenter];
 	attrs[NSParagraphStyleAttributeName] = style;
 	if (highlighted)
     {

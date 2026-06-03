@@ -63,7 +63,7 @@
 	[storage replaceCharactersInRange:NSMakeRange(0, [storage length]) withString:@""];
 
 	NSUInteger numMessages = [messages count];
-	[self.detailsInfo setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Details for %d log messages", @""), numMessages]];
+	[self.detailsInfo setStringValue:[NSString stringWithFormat:NSLocalizedString(@"Details for %lu log messages", @""), numMessages]];
 	[self.progressIndicator setHidden:NO];
 	[self.progressIndicator startAnimation:self];
 

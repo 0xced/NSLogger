@@ -136,7 +136,7 @@ NSString *const kMessageColumnWidthsChangedNotification = @"MessageColumnWidthsC
 	dict = [textAttrs mutableCopy];
 	dict[NSFontAttributeName] = defaultMonospacedFont;
 	style = [dict[NSParagraphStyleAttributeName] mutableCopy];
-	[style setAlignment:NSCenterTextAlignment];
+	[style setAlignment:NSTextAlignmentCenter];
 	dict[NSParagraphStyleAttributeName] = style;
 	attrs[@"mark"] = dict;
 
@@ -178,7 +178,7 @@ NSString *const kMessageColumnWidthsChangedNotification = @"MessageColumnWidthsC
 			NSMutableDictionary *attrs = [sDefaultAttributes mutableCopy];
 			NSMutableDictionary *dict = [sDefaultAttributes[@"text"] mutableCopy];
 			NSMutableParagraphStyle *style = [dict[NSParagraphStyleAttributeName] mutableCopy];
-			[style setAlignment:NSCenterTextAlignment];
+			[style setAlignment:NSTextAlignmentCenter];
 			dict[NSParagraphStyleAttributeName] = style;
 			attrs[@"mark"] = dict;
 			[self setDefaultAttributes:attrs];
@@ -455,7 +455,7 @@ NSString *const kMessageColumnWidthsChangedNotification = @"MessageColumnWidthsC
 	if (dataLen == 1)
 		[strings addObject:NSLocalizedString(@"Raw data, 1 byte:", @"")];
 	else
-		[strings addObject:[NSString stringWithFormat:NSLocalizedString(@"Raw data, %u bytes:", @""), dataLen]];
+		[strings addObject:[NSString stringWithFormat:NSLocalizedString(@"Raw data, %lu bytes:", @""), dataLen]];
 	while (dataLen)
 	{
 		if ([strings count] == MAX_DATA_LINES)
@@ -555,7 +555,7 @@ NSString *const kMessageColumnWidthsChangedNotification = @"MessageColumnWidthsC
 				s = [s substringToIndex:2048];
 
 			NSRect lr = [s boundingRectWithSize:sz
-										options:(NSStringDrawingOneShot | NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading)
+										options:(NSStringDrawingUsesLineFragmentOrigin | NSStringDrawingUsesFontLeading)
 									 attributes:self.defaultAttributes[@"text"]];
 			sz.height = fminf((float) NSHeight(lr), (float) sz.height);
 			break;
@@ -890,7 +890,7 @@ NSString *const kMessageColumnWidthsChangedNotification = @"MessageColumnWidthsC
 			if (highlightedTextColor == nil)
 				hintAttrs[NSForegroundColorAttributeName] = NSColor.darkGrayColor;
 			NSMutableParagraphStyle *style = [[NSParagraphStyle defaultParagraphStyle] mutableCopy];
-			[style setAlignment:NSRightTextAlignment];
+			[style setAlignment:NSTextAlignmentRight];
 			hintAttrs[NSParagraphStyleAttributeName] = style;
 			hint = NSLocalizedString(@"See all...", @"");
 			hintHeight = [hint boundingRectWithSize:r.size
@@ -963,7 +963,7 @@ NSString *const kMessageColumnWidthsChangedNotification = @"MessageColumnWidthsC
 		CGContextScaleCTM(ctx, 1.0f, -1.0f);
 		[self.message.image drawInRect:NSMakeRect(0, 0, newSize.width, newSize.height)
 							  fromRect:NSMakeRect(0, 0, srcSize.width, srcSize.height)
-							 operation:NSCompositeCopy
+							 operation:NSCompositingOperationCopy
 							  fraction:1.0f];
 		CGContextRestoreGState(ctx);
 	}

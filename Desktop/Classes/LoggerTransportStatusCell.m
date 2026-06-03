@@ -71,7 +71,7 @@
 								   sz.width,
 								   sz.height)
 			   fromRect:NSMakeRect(0, 0, sz.width, sz.height)
-			  operation:NSCompositeSourceOver
+			  operation:NSCompositingOperationSourceOver
 			   fraction:1.0f
 		 respectFlipped:YES
 				  hints:nil];
@@ -82,7 +82,7 @@
 										  szSSL.width,
 										  szSSL.height)
 					  fromRect:NSMakeRect(0, 0, szSSL.width, szSSL.height)
-					 operation:NSCompositeSourceOver
+					 operation:NSCompositingOperationSourceOver
 					  fraction:1.0f
 				respectFlipped:YES
 						 hints:nil];

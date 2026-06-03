@@ -83,7 +83,7 @@ static void AcceptSocketCallback(CFSocketRef sock, CFSocketCallBackType type, CF
 			return NSLocalizedString(@"Ready to accept connections", @"Transport ready status");
 		if (numConnected == 1)
 			return NSLocalizedString(@"1 active connection", @"1 active connection for transport");
-		return [NSString stringWithFormat:NSLocalizedString(@"%d active connections", @"Number of active connections for transport"), numConnected];
+		return [NSString stringWithFormat:NSLocalizedString(@"%ld active connections", @"Number of active connections for transport"), numConnected];
 	}
 	if (self.active)
 		return NSLocalizedString(@"Opening service", @"Transport status: opening");
@@ -334,7 +334,7 @@ static void AcceptSocketCallback(CFSocketRef sock, CFSocketCallBackType type, CF
 		if (publishBonjourService)
 			self.failureReason = NSLocalizedString(@"Failed creating sockets for Bonjour%s service.", @"");
 		else
-			self.failureReason = [NSString stringWithFormat:NSLocalizedString(@"Failed listening on port %d (port busy?)",@""), listenerPort];
+			self.failureReason = [NSString stringWithFormat:NSLocalizedString(@"Failed listening on port %ld (port busy?)",@""), listenerPort];
 
 		[[NSNotificationCenter defaultCenter] postNotificationName:kShowStatusInStatusWindowNotification
 															object:self];

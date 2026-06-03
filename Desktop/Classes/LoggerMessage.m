@@ -112,7 +112,7 @@ static NSMutableArray *sTags = nil;
 	if (dataLen == 1)
 		[s appendString:NSLocalizedString(@"Raw data, 1 byte:\n", @"")];
 	else
-		[s appendFormat:NSLocalizedString(@"Raw data, %u bytes:\n", @""), dataLen];
+		[s appendFormat:NSLocalizedString(@"Raw data, %lu bytes:\n", @""), dataLen];
 	while (dataLen)
 	{
 		int i, b = sprintf(buffer, " %0*x: ", offsetPad, (unsigned)offset);
